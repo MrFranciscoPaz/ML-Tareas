@@ -38,7 +38,5 @@ for (i in 1:14){
 }
 
 
-optim()
-descen
 
 
