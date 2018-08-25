@@ -1,11 +1,6 @@
 library(tidyverse)
 library(sampling)
-library(samplingVarEst)
-library(psych)
-library(readr)
-library(dplyr)
-library(pander)
-library(knitr)
+
 
 #Declaramos las funciones que vamos a utilizar:
 
