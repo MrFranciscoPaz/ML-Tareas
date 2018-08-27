@@ -1,6 +1,6 @@
 library(tidyverse)
 library(sampling)
-
+library(psych)
 
 #Declaramos las funciones que vamos a utilizar:
 
@@ -81,6 +81,9 @@ viv_entrena_norm<-viv_entrena
 
 #No hacemos reconocimiento entre variables númericas y categoricas.
 viv_entrena_norm<-as.data.frame(viv_entrena_norm)
+
+#La funcion scale pude hacer esto de forma directa.
+#Es importante hacerlo dandole forma a la tabla larga. Esto hace que sea más facíl y limpio el tratamiento de los datos.
 
 for (i in 1:13){
     prom<-mean(viv_entrena_norm[,i] )
