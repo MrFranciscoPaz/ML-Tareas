@@ -1,8 +1,10 @@
 ---
-title: "Tarea 3: clasificación y devianza"
-author: "FG \\ Francisco Paz"
+title: 'Tarea 3: clasificación y devianza'
+author: "FG \ Francisco Paz"
 date: "8/28/2018"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 
@@ -58,7 +60,7 @@ p_1_simple
 ```{r}
 datos_pr$p_1_simple <- 0
 for (i in 1:length(datos_pr$diabetes)) {
-  if (datos_pr$diabetes[i]==1) datos_pr$p_1_simple[i] = p_1_simple else datos_pr$p_1_simple[i] = 1-p_1_simple
+  if (datos_pr$diabetes[i]==1) datos_pr$p_1_simple[i] = p_1_simple else datos_pr$p_1_simple[i] = p_1_simple
 }
 datos_pr
 ```
@@ -73,6 +75,8 @@ $$- 2 log (\hat{p}(x)) $$
 ```{r}
 # explica por qué esta es la fórmula correcta:
 # Observemos que la función recibe la variable g que determina si tiene o no diabetes, seguido de la probabiliad asignada. Como g solo puede ser 0 o 1 notamos que solo uno de los terminos de la suma sobrevivira; para el caso en que es 0 nos quedamos con la probabilidad asociada a que no tenga diabetes; si por el contrario g = 1 nos quedamos con la probabiliad de que si tenga.
+
+#La devianza se conoce en machine learning como cross entropie
 devianza <- function(g, p_1){
      -2*(g * log(p_1) + (1 - g) * log(1 - p_1))
 }
@@ -90,13 +94,16 @@ mean( datos_pr$devianza_simple )
 
 
 4. Repite el inciso anterior usando el modelo $p_1=0.75$ (a cada quien se le asigna
-probabilidad 1/2 de tener diabetes). **¿Cuál tiene menor devianza promedio de prueba?
+probabilidad 3/4 de tener diabetes). **¿Cuál tiene menor devianza promedio de prueba?
 Explica intuitivamente examinando las tablas que construiste.**
 
 ```{r}
+
+#Observemos que la devianza es minimizada, por la proporción de casos que tenemos en los datos de entrenamiento.
+
 datos_pr$p_1_simple_0.75 <- 0
 for (i in 1:length(datos_pr$diabetes)) {
-  if (datos_pr$diabetes[i]==1) datos_pr$p_1_simple_0.75[i] = 0.75 else datos_pr$p_1_simple_0.75[i] = 0.25 
+  if (datos_pr$diabetes[i]==1) datos_pr$p_1_simple_0.75[i] = 0.75 else datos_pr$p_1_simple_0.75[i] = 0.75 
 }
 datos_pr$devianza_simple_0.75 <- devianza(datos_pr$diabetes,datos_pr$p_1_simple_0.75)
 datos_pr[,c(1,2,4,5,6)]
