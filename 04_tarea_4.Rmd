@@ -110,6 +110,8 @@ tail(z1,20)
 2. Calcula ahora la devianza de prueba de este modelo
 
 ```{r}
+#Recordar que para comparar distintos conjuntos de datos, devemos dividir la devianza entre el número de datos para comparar devianzs de datos con distinto número de row data.
+#glm(Survived~cherbourg,data = entrena, family = "binomial")#Para comparar vs glm
 x_pr_1 <-  x_pr[ , "cherbourg", drop = FALSE]
 devianza_pr <- devianza_calc(x_pr_1, y_pr)
 # termina esta línea
@@ -128,6 +130,7 @@ probaSI #=0.6326531
 # probabilidad si  no embarcó  en Cherbourg
 probaNO<-h(z1[2000,1])
 probaNO #=0.3550725
+#Notar que no debe sumar uno porque estamos haciendo P(S|Che) y no P(Cher|S)
 ```
 
 
@@ -143,7 +146,8 @@ devianza_ent2 <- devianza_calc(x_ent, y_ent)
 grad_ent <- grad_calc(x_ent, y_ent)
 ## termina esta línea
 z2 <- descenso( 2000, c(rep(0,6)),0.001, grad_ent)
-tail(z2,20)
+tail(z2)
+matplot(z2)#Para checar convergencia
 ```
 
 2. Calcula ahora la devianza de prueba de este modelo
@@ -159,6 +163,7 @@ que abordó en southampton sobreviva. Repite para una mujer con boleto de 1a cla
 años, que abordó en southampton
 
 ```{r}
+#z2[2000,]
 # Rellena:
 # probabilidad sobrevivir si hombre, 3a clase, 60 años, southampton
 probaH <-h(sum(z2[2000,]*c(1,(3-1)/3,(60/60),0,1,0)))
@@ -199,13 +204,19 @@ Hombres mayores de 3era clase   tienen menos probabildid de sobrevivir
 5. ¿Cuál de los dos modelos anteriores (una sola variable, todas las variables)
 se desempeña mejor? ¿Por qué?
 
+```{r}
+devianza_pr <- devianza_calc(x_pr, y_pr)
+devianza_pr(z2[2000,] )
+```
 El segundo, ya que tiene menor devianza.
 
 6. Calcula el error de clasificación de prueba 
 
 ```{r}
-devianza_pr <- devianza_calc(x_pr, y_pr)
-devianza_pr(z2[2000,] )
+prob_pr <- p_beta(x_pr,z2[2000,])
+y_pred<-y_pr != as.numeric(prob_pr>0.5)
+table(y_pred,y_pr)
+mean(y_pred)
 ```
 
 
@@ -297,8 +308,6 @@ devianza_pr <- devianza_calc(cbind(x_pr, mat_pr), y_pr)
 devianza_pr(z4[2000,])
 
 ```
-
-
 
 
 
