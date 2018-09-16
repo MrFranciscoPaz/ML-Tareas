@@ -1,0 +1,199 @@
+---
+title: "Tarea 5"
+author: "Francisco Paz"
+output: html_notebook
+---
+
+1. En la Tarea 4, construye curvas ROC para cada uno de los tres modelos (una sola variable, todas las variables, y todas las variables más variables de ruido). ¿Cuál tiene mejor  desempeño? Calcula el AUC para cada una de las tres curvas.
+
+Primero es necesario correr la tarea 4
+```{r}
+#install.packages("ROCR")
+library(ROCR)
+pred_mod1<-p_beta(x_pr_1,z1[2000,])
+head(pred_mod1)
+
+pred_mod2<-p_beta(x_pr,z2[2000,]) 
+head(pred_mod2)
+
+pred_mod3<-p_beta(cbind(x_pr,mat_pr),z3[2000,])
+head(pred_mod3)
+```
+
+
+  Ahora graficamos las curvas ROC
+  
+  
+```{r}
+p1<-prediction(pred_mod1,y_pr)
+perf1 <- performance(p1, measure = "sens", x.measure = "fpr") 
+auc_1 <- performance(p1, measure = "auc")@y.values
+graf_roc_1 <- data_frame(tfp = perf1@x.values[[1]], sens = perf1@y.values[[1]], 
+                       d = perf1@alpha.values[[1]])
+
+
+p2<-prediction(pred_mod2,y_pr)
+perf2 <- performance(p2, measure = "sens", x.measure = "fpr") 
+auc_2 <- performance(p2, measure = "auc")@y.values
+graf_roc_2 <- data_frame(tfp = perf2@x.values[[1]], sens = perf2@y.values[[1]], 
+                       d = perf2@alpha.values[[1]])
+
+p3<-prediction(pred_mod3,y_pr)
+perf3 <- performance(p2, measure = "sens", x.measure = "fpr") 
+auc_3 <- performance(p3, measure = "auc")@y.values
+graf_roc_3 <- data_frame(tfp = perf3@x.values[[1]], sens = perf3@y.values[[1]], 
+                       d = perf3@alpha.values[[1]])
+
+graf_roc_2$modelo <- 'Todas las variables'
+graf_roc_1$modelo <- 'Solo una'
+graf_roc_3$modelo <- 'Todas  +  50 ruido'
+graf_roc <- bind_rows(graf_roc_1, graf_roc_2,graf_roc_3)
+
+ggplot(graf_roc, aes(x = tfp, y = sens, shape=modelo)) + geom_point(aes( colour=modelo)) +     xlab('1-especificidad') + ylab('Sensibilidad')
+```
+
+Ahora calculamos el AUC
+
+```{r}
+auc_1
+auc_2
+auc_3
+```
+
+2. Para el ejemplo de regresión logística multinomial que vimos en clase (clasificación de dígitos 0-9), construye la gráfica de coeficientes (sección 4.3.3) para:
+
+- El modelo que vimos en clase donde no habían convergido los coeficientes
+- El modelo después de correr hasta convergencia (usa la  función *multinom*)
+ 
+ Compara las gráficas. ¿Cuál es más interpretable? ¿Puedes ver  el sobreajuste del segundo modelo en estas gráficas?
+
+
+
+
+### Ejemplo: Clasificación de dígitos con regresión multinomial
+
+```{r}
+digitos_entrena <- read_csv('datos/zip-train.csv')
+digitos_prueba <- read_csv('datos/zip-test.csv')
+names(digitos_entrena)[1] <- 'digito'
+names(digitos_entrena)[2:257] <- paste0('pixel_', 1:256)
+names(digitos_prueba)[1] <- 'digito'
+names(digitos_prueba)[2:257] <- paste0('pixel_', 1:256)
+```
+
+En este ejemplo, usamos la función *multinom* de *nnet*, que usa
+BFGS para hacer la optimización:
+```{r}
+library(nnet)
+mod_mult <- multinom(digito ~ ., data = digitos_entrena, MaxNWt=100000, maxit = 20)
+```
+
+Checamos para diagnóstico la matriz de confusión **de entrenamiento**.
+
+```{r}
+table(predict(mod_mult), digitos_entrena$digito)
+```
+
+
+Ahora validamos con la muestra de prueba y calculamos error de clasificación:
+```{r}
+confusion_prueba <- table(predict(mod_mult, newdata = digitos_prueba), digitos_prueba$digito)
+confusion_prueba
+sum(diag(confusion_prueba))/sum(confusion_prueba)
+round(prop.table(confusion_prueba, 2),2)
+```
+
+El resultado no es muy bueno. Veremos más adelante mejores métodos para 
+este problema. ¿Podemos interpretar el modelo?
+
+Una idea es tomar los coeficientes y graficarlos según la estructura de
+las imágenes:
+
+```{r}
+coefs <- coef(mod_mult)
+coefs_reng <- coefs[1, , drop =FALSE]
+coefs <- rbind(coefs_reng, coefs)
+coefs[1 , ] <- 0
+dim(coefs)
+beta_df <- coefs[,-1] %>% as.data.frame %>% 
+  mutate(digito = 0:(nrow(coefs)-1)) %>%
+  gather(pixel, valor, contains('pixel')) %>%
+  separate(pixel, into = c('str','pixel_no'), sep='_') %>%
+  mutate(x = (as.integer(pixel_no)-1) %% 16, y = -((as.integer(pixel_no)-1) %/% 16))
+head(beta_df)
+```
+
+Podemos cruzar la tabla con sí misma para hacer comparaciones de cómo discrimina
+el modelo entre cada par de dígitos:
+
+```{r}
+tab_coef <- beta_df %>% select(digito, x, y, valor)
+tab_coef_1 <- tab_coef
+names(tab_coef_1) <- c('digito_1','x','y','valor_1')
+tab_cruzada <- full_join(tab_coef_1, tab_coef) %>% mutate(dif = valor_1 - valor)
+tab_cruzada <- tab_cruzada %>% group_by(digito, digito_1) %>% 
+  mutate(dif_s = (dif - mean(dif))/sd(dif)) %>%
+  mutate(dif_p = pmin(pmax(dif_s, -2), 2))
+```
+
+```{r}
+ggplot(tab_cruzada, aes(x=x, y=y)) + geom_tile(aes(fill = dif_p)) + 
+  facet_grid(digito_1~digito) + scale_fill_distiller(palette = "Spectral")
+```
+
+
+
+### Discusión {-}
+
+Nótese que no corrimos el modelo hasta convergencia. Vamos a hacerlo ahora:
+
+
+```{r}
+mod_mult2 <- multinom(digito ~ ., data = digitos_entrena, MaxNWt=100000, maxit = 500)
+```
+
+
+```{r, cache = TRUE}
+confusion_prueba <- table(predict(mod_mult2, newdata = digitos_prueba), digitos_prueba$digito)
+confusion_prueba
+sum(diag(confusion_prueba))/sum(confusion_prueba)
+round(prop.table(confusion_prueba, 2),2)
+```
+
+Y nota que el error es más grande que cuando nos detuvimos antes. Discute en clase:
+
+- Grafica los coeficientes para este segundo modelo
+- ¿En cuál de los dos modelos es más fácil interpretar los coeficientes? ¿En cuál
+es menor el error?
+- ¿Cuál crees que es el problema de este segundo modelo comparado con el primero? ¿Por qué crees que sucede? ¿Cómo podríamos corregir este problema?
+
+```{r}
+coefs <- coef(mod_mult2)
+coefs_reng <- coefs[1, , drop =FALSE]
+coefs <- rbind(coefs_reng, coefs)
+coefs[1 , ] <- 0
+dim(coefs)
+beta_df <- coefs[,-1] %>% as.data.frame %>% 
+  mutate(digito = 0:(nrow(coefs)-1)) %>%
+  gather(pixel, valor, contains('pixel')) %>%
+  separate(pixel, into = c('str','pixel_no'), sep='_') %>%
+  mutate(x = (as.integer(pixel_no)-1) %% 16, y = -((as.integer(pixel_no)-1) %/% 16))
+head
+```
+```{r}
+tab_coef <- beta_df %>% select(digito, x, y, valor)
+tab_coef_1 <- tab_coef
+names(tab_coef_1) <- c('digito_1','x','y','valor_1')
+tab_cruzada <- full_join(tab_coef_1, tab_coef) %>% mutate(dif = valor_1 - valor)
+tab_cruzada <- tab_cruzada %>% group_by(digito, digito_1) %>% 
+  mutate(dif_s = (dif - mean(dif))/sd(dif)) %>%
+  mutate(dif_p = pmin(pmax(dif_s, -2), 2))
+```
+
+
+```{r}
+ggplot(tab_cruzada, aes(x=x, y=y)) + geom_tile(aes(fill = dif_p)) + 
+  facet_grid(digito_1~digito) + scale_fill_distiller(palette = "Spectral")
+```
+
+
