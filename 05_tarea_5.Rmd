@@ -49,7 +49,9 @@ graf_roc_1$modelo <- 'Solo una'
 graf_roc_3$modelo <- 'Todas  +  50 ruido'
 graf_roc <- bind_rows(graf_roc_1, graf_roc_2,graf_roc_3)
 
-ggplot(graf_roc, aes(x = tfp, y = sens, shape=modelo)) + geom_point(aes( colour=modelo)) +     xlab('1-especificidad') + ylab('Sensibilidad')
+ggplot(graf_roc, aes(x = tfp, y = sens, shape=modelo,colour=modelo)) + 
+  geom_point() + geom_line() + geom_abline(intercept=0, slope=1) +
+  xlab('1-especificidad') + ylab('Sensibilidad')
 ```
 
 Ahora calculamos el AUC
@@ -113,7 +115,7 @@ las imágenes:
 coefs <- coef(mod_mult)
 coefs_reng <- coefs[1, , drop =FALSE]
 coefs <- rbind(coefs_reng, coefs)
-coefs[1 , ] <- 0
+coefs[1 , ] <- 0 #Aquí fija los 0's de la clase base(Podemos notar que puede ser cualquier k la clase base).
 dim(coefs)
 beta_df <- coefs[,-1] %>% as.data.frame %>% 
   mutate(digito = 0:(nrow(coefs)-1)) %>%
@@ -197,3 +199,8 @@ ggplot(tab_cruzada, aes(x=x, y=y)) + geom_tile(aes(fill = dif_p)) +
 ```
 
 
+##El problema del primer modelo vs el segundo:
+
+No queremos minimízar la devianza, queremos minimízar el error. Este modelo esta sobre ajustado, lo que quiere decir que, quiza aprendio demasiado acerca de una diferencia de pixel, dejando pasar el resto de dif (es como si solo minimízara con algún ruido)
+
+Notar que tenemos más parámetros que casos.
