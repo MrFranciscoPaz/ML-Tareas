@@ -1,0 +1,291 @@
+---
+title: "Tarea 7"
+output: html_notebook
+---
+
+## Parte 1
+
+Resuelve el ejercicio 7.1.0.1 de las notas (sigue el ejemplo anterior a este ejercicio). Puedes utilizar nnet o el código con el que optimizamos en clase.
+
+Este es el código para generar los datos:
+
+```{r}
+library(tidyverse)
+h <- function(x){
+    exp(x)/(1 + exp(x))
+}
+x <- seq(-2,2,0.05)
+p <- h(3 + x- 3 * x ^ 2 + 3 * cos(4 * x))
+set.seed(280572)
+x.2 <- runif(300, -2, 2)
+g.2 <- rbinom(300, 1, h(3 + x.2 - 3 * x.2 ^ 2 + 3 * cos(4 * x.2)))
+datos <- data.frame(x.2,g.2)
+dat.p <- data.frame(x,p)
+g <- qplot(x,p, geom='line', col='red')
+g + geom_jitter(data = datos, aes(x=x.2,y=g.2), col ='black',
+  position =position_jitter(height=0.05), alpha=0.4)
+```
+
+Funciones  a utilizar:
+```{r}
+feed_fow <- function(beta, x){
+  a_1 <- h(beta[1] + beta[2] * x) # calcula variable 1 de capa oculta
+  a_2 <- h(beta[3] + beta[4] * x) # calcula variable 2 de capa oculta
+  a_3 <- beta[5]*cos(beta[6]*x)^2  
+  a_4 <- beta[7]*sin(beta[8]*x)^2
+  p <- h(beta[9] + beta[10] * a_1 + beta[11] * a_2 + beta[12] * a_3 + beta[13] * a_4) 
+  p
+}
+
+devianza_fun <- function(x, y){
+    # esta función es una fábrica de funciones
+   devianza <- function(beta){
+         p <- feed_fow(beta, x)
+      - 2 * mean(y*log(p) + (1-y)*log(1-p))
+   }
+  devianza
+}
+
+
+```
+
+```{r}
+dev <- devianza_fun(x.2, g.2) # crea función dev
+## ahora dev toma solamente los 7 parámetros beta:
+dev(c(0,0,0,0,0,0,0,0,0,0,0,0,0))
+```
+
+```{r}
+set.seed(5)
+salida <- optim(rnorm(15), dev, method = 'BFGS') # inicializar al azar punto inicial
+salida
+``` 
+
+```{r}
+beta <- salida$par
+
+## hacer feed forward con beta encontrados
+p_2 <- feed_fow(beta, x)
+dat_2 <- data.frame(x, p_2 = p_2)
+ggplot(dat_2, aes(x = x, y = p_2)) + geom_line()+
+geom_line(data = dat.p, aes(x = x, y = p), col='red') +ylim(c(0,1))+
+   geom_point(data = datos, aes(x = x.2, y = g.2))
+```
+
+```{r}
+devianza_reg <- function(x, y, lambda){
+    # esta función es una fábrica de funciones
+   devianza <- function(beta){
+         p <- feed_fow(beta, x)
+         # en esta regularizacion quitamos sesgos, pero puede hacerse también con sesgos.
+        - 2 * mean(y*log(p) + (1-y)*log(1-p)) + lambda*sum(beta[-c(1,3,5)]^2) 
+   }
+  devianza
+}
+
+dev_r <- devianza_reg(x.2, g.2, 0.001) # crea función dev
+set.seed(5)
+salida <- optim(rnorm(16), dev_r, method='BFGS') # inicializar al azar punto inicial
+salida
+```
+
+```{r}
+beta <- salida$par
+dev(beta)
+```
+
+```{r}
+p_2 <- feed_fow(beta, x)
+dat_2 <- data.frame(x, p_2 = p_2)
+ggplot(dat_2, aes(x = x, y = p_2)) + geom_line()+
+geom_line(data = dat.p, aes(x = x, y = p), col='red') +ylim(c(0,1))+
+   geom_point(data = datos, aes(x = x.2, y = g.2))
+```
+
+
+
+- ¿Qué tan bien puedes recuperar la forma verdadera (la función $p$, o la curva roja en la gráfica)? 
+- ¿Cuántas variables derivadas $a_k$ utilizaste? Intenta usar el mínimo posible.
+- A grandes rasgos, ¿puedes capturar todos los movimientos de la función verdadera $p$ con esta muestra de entrenamiento? Explica por qué si puedes o por qué no.
+
+## Parte 2
+
+1. Instala el paquete keras de R en tu computadora. Sigue [estas instrucciones](https://keras.rstudio.com). 
+
+---
+
+2. **Si no funciona el método de arriba en tu computadora** (generalmente
+por instalaciones de python diferentes, etc), 
+puedes instalar en un contenedor de docker.
+
+Primero instala [docker](https://www.docker.com/get-started) en tu computadora.
+Baja el archivo Dockerfile del repositorio (se tiene que llamar Dockerfile, sin extensión).
+En línea de comandos, en el mismo directorio donde está el Dockerfile,
+corre las siguiente línea:
+
+
+```
+docker build -t aprendizaje-rstudio .
+```
+
+Esto va a tomar varios minutos, pero solo hay que correrlo una vez.
+
+Después, cuando quieras usar el contenedor, corre:
+
+```
+docker run --rm -p 8787:8787 -e PASSWORD=tupassword -v ~/tu/carpeta/local:/home/rstudio/ aprendizaje-rstudio
+```
+
+Nota: en windows la segunda línea debe ser de la forma:
+
+```
+docker run --rm -p 8787:8787 -e PASSWORD=tupassword -v /c/Users/miusuario/micarpeta:/home/rstudio/ aprendizaje-rstudio
+```
+
+Y abre en Chrome o Safari (o el navegador que uses) la dirección:
+
+http://localhost:8787
+
+Y ahora puedes trabajar en rstudio dentro del contenedor de docker (user: rstudio, 
+password: tupassword).  
+
+---
+
+3. Corre algún ejemplo para checar tu instalación, por ejemplo:
+
+https://keras.rstudio.com/articles/tutorial_basic_regression.html
+
+
+#Ejemplo:
+
+```{r}
+library(keras)
+library(tibble)
+
+boston_housing <- dataset_boston_housing()
+
+c(train_data, train_labels) %<-% boston_housing$train
+c(test_data, test_labels) %<-% boston_housing$test
+
+paste0("Training entries: ", length(train_data), ", labels: ", length(train_labels))
+```
+
+
+```{r}
+train_data[1, ] # Display sample features, notice the different scales
+
+column_names <- c('CRIM', 'ZN', 'INDUS', 'CHAS', 'NOX', 'RM', 'AGE', 
+                  'DIS', 'RAD', 'TAX', 'PTRATIO', 'B', 'LSTAT')
+train_df <- as_tibble(train_data)
+colnames(train_df) <- column_names
+
+train_df
+```
+
+
+```{r}
+train_labels[1:10] # Display first 10 entries
+```
+
+##Normalize features
+
+```{r}
+# Test data is *not* used when calculating the mean and std.
+
+# Normalize training data
+train_data <- scale(train_data) 
+
+# Use means and standard deviations from training set to normalize test set
+col_means_train <- attr(train_data, "scaled:center") 
+col_stddevs_train <- attr(train_data, "scaled:scale")
+test_data <- scale(test_data, center = col_means_train, scale = col_stddevs_train)
+
+train_data[1, ] # First training sample, normalized
+```
+
+##Create the model
+
+```{r}
+build_model <- function() {
+  
+  model <- keras_model_sequential() %>%
+    layer_dense(units = 64, activation = "relu",
+                input_shape = dim(train_data)[2]) %>%
+    layer_dense(units = 64, activation = "relu") %>%
+    layer_dense(units = 1)
+  
+  model %>% compile(
+    loss = "mse",
+    optimizer = optimizer_rmsprop(),
+    metrics = list("mean_absolute_error")
+  )
+  
+  model
+}
+
+model <- build_model()
+model %>% summary()
+```
+
+
+##Train the model
+
+```{r}
+# Display training progress by printing a single dot for each completed epoch.
+print_dot_callback <- callback_lambda(
+  on_epoch_end = function(epoch, logs) {
+    if (epoch %% 80 == 0) cat("\n")
+    cat(".")
+  }
+)    
+
+epochs <- 500
+
+# Fit the model and store training stats
+history <- model %>% fit(
+  train_data,
+  train_labels,
+  epochs = epochs,
+  validation_split = 0.2,
+  verbose = 0,
+  callbacks = list(print_dot_callback)
+)
+```
+
+```{r}
+library(ggplot2)
+
+plot(history, metrics = "mean_absolute_error", smooth = FALSE) +
+  coord_cartesian(ylim = c(0, 5))
+```
+
+```{r}
+# The patience parameter is the amount of epochs to check for improvement.
+early_stop <- callback_early_stopping(monitor = "val_loss", patience = 20)
+
+model <- build_model()
+history <- model %>% fit(
+  train_data,
+  train_labels,
+  epochs = epochs,
+  validation_split = 0.2,
+  verbose = 0,
+  callbacks = list(early_stop, print_dot_callback)
+)
+
+plot(history, metrics = "mean_absolute_error", smooth = FALSE) +
+  coord_cartesian(xlim = c(0, 150), ylim = c(0, 5))
+```
+
+```{r}
+c(loss, mae) %<-% (model %>% evaluate(test_data, test_labels, verbose = 0))
+
+paste0("Mean absolute error on test set: $", sprintf("%.2f", mae * 1000))
+```
+
+
+```{r}
+test_predictions <- model %>% predict(test_data)
+test_predictions[ , 1]
+```
+
