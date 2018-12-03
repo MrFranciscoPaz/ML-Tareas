@@ -1,0 +1,171 @@
+---
+title: "Tarea 11 (reducción de dimensionalidad)"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+```
+1. Considera $u$ que representa valores en una dimensión para los casos ($n$)
+y un vector $v$ que representa valores asociados para las variables ($p$).
+
+```{r}
+u <- c(0,1,2,4,5)
+v <- c(0.5,1,5)
+```
+
+Si $sigma = 10$, calcula la matriz de datos $n\times p$ generada por la matriz
+de rango 1  $\sigma u v^t$.
+
+```{r}
+# completa el código
+X_1 <- 10*u %*% t(v)
+X_1
+```
+¿Cómo describirías esta matriz de datos en términos de las columnas? ¿En términos 
+de los renglones?
+
+2. Si $X_1$ es la matriz que obtuviste en el inciso anterior, agrega ruido:
+```{r}
+X <- X_1 + matrix(rnorm(15*3, 0, 0.1), 5, 3)
+X
+```
+
+3. Recupera la dimensión que construimos en 1) usando la función *svd* (puedes intentar
+optimizando directamente si quieres):
+
+```{r}
+# completa el código
+svd_1 <- svd(X)
+```
+
+- Identifica las columnas de $U$ y $V$ en la salida de *svd* que corresponden a los vectores que usamos para construir $X_1$,
+
+```{r}
+v_svd <- svd_1$v %>% t %>% as.data.frame() 
+u_svd <- svd_1$u %>% data.frame
+u
+v
+```
+
+- ¿Cuál es la relación entre los $u$ y $v$ que usamos al principio y los que obtuvimos
+de la función *svd*?
+
+Son los mismos.
+
+
+4. Argumenta con la salida de *svd* que las aproximaciones de rango 2 y rango 3 son
+no aportan mucho sobre la de rango 1. 
+
+- Verifica comparando matrices 
+que las aproximaciones de rango 1 y rango 2
+son muy similares. 
+
+```{r}
+svd_1$d/sum(svd_1$d)
+```
+
+```{r}
+d <- svd_1$d
+(d[1]*tcrossprod(svd_1$u[,1], svd_1$v[,1])) %>% round(1)
+```
+```{r}
+(d[2]*tcrossprod(svd_1$u[,2], svd_1$v[,2])) %>% round(1)
+```
+
+```{r}
+(d[3]*tcrossprod(svd_1$u[,3], svd_1$v[,3])) %>% round(1)
+```
+- Verifica calculando la distancia Frobenius entre la aproximación de rango 1 y 2 y
+la matriz original, usando los valores singulares ($\sigma$).
+
+```{r}
+1 - (sum(X^2) - sum(svd_1$d[1]^2))/sum(X^2)
+```
+
+```{r}
+1-(sum(X^2) - sum(svd_1$d[1:2]^2))/sum(X^2)
+```
+
+```{r}
+1-(sum(X^2) - sum(svd_1$d[1:3]^2))/sum(X^2)
+```
+
+5. Considera los siguientes datos de gasto por decil en distintos tipos de alimentos
+(cada decil contiene casi 3 millones de hogares, y el gasto está en miles de pesos.
+Nota: estos datos son de 2010/2008)
+```{r}
+library(readr)
+deciles <- read_csv('../datos/enigh_deciles.csv')
+deciles
+```
+
+6. Calcula la primera dimensión usando la función svd. ¿Qué explica esta dimensión? 
+(Nota: puedes cancelar signos de $u$ y $v$ para hacer más fácil la interpretación) 
+
+```{r}
+#
+rownames(deciles)<-c(" 1 CEREALES ",
+" 2 CARNES ",
+" 3 PESCADOS Y MARISCOS ",
+" 4 LECHE Y SUS DERIVADOS ",
+" 5 HUEVO ",
+" 6 ACEITES Y GRASAS ",
+" 7 TUBERCULOS ",
+" 8 VERDURAS, LEGUMBRES, LEGUMINOSAS",
+" 9 FRUTAS ",
+"10 AZUCAR Y MIELES ",
+"11 CAFE, TE Y CHOCOLATE ",
+"12 ESPECIAS Y ADEREZOS ",
+"13 OTROS ALIMENTOS DIVERSOS"
+)
+svd_2<-svd(deciles[,c(2,3,4,5,6,7,8,9,10,11)])
+```
+
+```{r}
+d <- svd_2$d
+(d[2]*tcrossprod(svd_2$u[,1], svd_2$v[,2])) %>% round(1)
+```
+```{r}
+svd_2$d
+```
+
+
+7. Ahora considera la segunda dimensión
+
+- Considera primero el vector $v_2$ (¿para qué deciles
+tiene valores positivos? ¿para qué deciles tiene valores negativos?
+
+```{r}
+#
+d <- svd_2$d
+(d[2]*tcrossprod(svd_2$u[,2], svd_2$v[,2])) %>% round(1)
+```
+
+```{r}
+v <- svd_2$v
+rownames(v) <- colnames(deciles[,c(2,3,4,5,6,7,8,9,10,11)])
+v
+```
+
+- Ahora considera el vector $u_2$. ¿Para qué rubros tiene valores grandes/chicos?
+¿Qué explica esta dimensión?
+
+```{r}
+u <- (svd_2$u)
+rownames(u) <- rownames(deciles)
+u
+```
+
+- Puedes también calcular la siguiente matriz de rango 1, para que te ayude 
+a interpretar: es la componente $\sigma_2u_2v_2^t$, que se suma a $\sigma_1 u_1 v_1^t$
+para obtener la aproximación de rango 2. Puedes dividir entre miles (de manera que las unidades finales son millones) para interpretar
+más fácilmente:
+
+```{r}
+# modifica según el código que escribiste arriba:
+A <- round(svd_2$d[2]*tcrossprod(svd_2$u[,2], svd_2$v[,2])/1e3)
+rownames(A) <- deciles$X1
+A
+```
+
